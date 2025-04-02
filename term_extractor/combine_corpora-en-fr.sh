@@ -7,10 +7,6 @@ python preprocess_acter.py \
     /content/ACTER/fr/equi/annotated/annotations/sequential_annotations/iob_annotations/without_named_entities/ \
     /content/ACTER/fr/htfl/annotated/annotations/sequential_annotations/iob_annotations/without_named_entities/ \
     /content/ACTER/fr/wind/annotated/annotations/sequential_annotations/iob_annotations/without_named_entities/ \
-    /content/ACTER/nl/corp/annotated/annotations/sequential_annotations/iob_annotations/without_named_entities/ \
-    /content/ACTER/nl/equi/annotated/annotations/sequential_annotations/iob_annotations/without_named_entities/ \
-    /content/ACTER/nl/htfl/annotated/annotations/sequential_annotations/iob_annotations/without_named_entities/ \
-    /content/ACTER/nl/wind/annotated/annotations/sequential_annotations/iob_annotations/without_named_entities/ \
     --train_output train_full.tsv \
     --test_output test_full.tsv \
     --val_output val_full.tsv \
