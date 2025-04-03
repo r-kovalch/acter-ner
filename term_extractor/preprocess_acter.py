@@ -39,7 +39,7 @@ class SentenceTokens:
         Returns:
             List of TSV formatted lines
         """
-        return [f"{t}\t{l + "-TERM" if l != "O" else l}" for t, l in zip(self.tokens, self.labels)]
+        return [f"{t}\t{l + '-TERM' if l != 'O' else l}" for t, l in zip(self.tokens, self.labels)]
 
 
 class IOBDatasetProcessor:
