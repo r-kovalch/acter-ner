@@ -89,13 +89,12 @@ def split(
 
 
 def write(path: Path, sentences: List[Sentence]) -> None:
-    """Write a list of Sentence objects to `path` in TSV format."""
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8") as f:
         for i, sent in enumerate(sentences):
-            if i:                                 # blank line between sentences
+            if i:
                 f.write("\n\n")
-            f.write(sent.to_tsv())
+        f.write(sent.to_tsv())
 
 
 # ---------------------------------------------------------------------------
