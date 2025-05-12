@@ -1,6 +1,7 @@
 import torch, spacy
 from torch.nn import BCEWithLogitsLoss
 from thinc.api import PyTorchWrapper, Model
+from spacy.language import Language
 from spacy.pipeline.trainable_pipe import TrainablePipe
 from spacy.registry import registry
 from gliner import GLiNER                       # HF checkpoint
@@ -57,3 +58,15 @@ class GLiNERPipe(TrainablePipe):
         self._require_labels()                 # spaCy utility check
         return {}
 
+@Language.factory(
+    "gliner",                                        # 🔑 name used in the config
+    default_config={
+        "model_name": "gliner-community/gliner_small-v2.5",
+        "labels": ["TERM"],
+        "threshold": 0.5,
+    },
+    assigns=["doc.ents"],                            # slots the component sets
+)
+def make_gliner(nlp: Language, name: str,
+                model_name: str, labels, threshold):
+    return GLiNERPipe(nlp, name, model_name, labels, threshold)
