@@ -11,13 +11,20 @@ from gliner import GLiNER
 
 
 @registry.architectures("custom.GLiNERModel.v1")
-def build_gliner_model(vocab: Vocab, model_name: str, labels: list[str]) -> Model:
+def build_gliner_model(
+    vocab: Vocab,
+    model_name: str,
+    labels: list[str] | None = None,   # ← make labels optional
+) -> Model:
     """
-    spaCy will pass in the shared Vocab here—ignore it.
+    Load GLiNER from HF, wrap it as a Thinc Model.
+    If `labels` is None (e.g. during fill-config), use a sensible default.
     """
+    # If labels weren't passed (fill-config), just pick a placeholder
+    if labels is None:
+        labels = ["TERM"]
     hf = GLiNER.from_pretrained(model_name, labels=labels)
     return PyTorchWrapper(hf)
-
 
 
 class GLiNERPipe(TrainablePipe):
