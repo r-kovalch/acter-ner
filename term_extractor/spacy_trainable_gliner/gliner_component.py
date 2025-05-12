@@ -10,28 +10,32 @@ from spacy import registry
 from gliner import GLiNER
 
 
-# 1) Architecture: spaCy will call this with (vocab, model_name, labels)
+# 1) Register a custom architecture that spaCy will build via Thinc
 @registry.architectures("custom.GLiNERModel.v1")
 def build_gliner_model(
     vocab: Vocab,
     model_name: str,
     labels: list[str],
 ) -> Model:
-    # load HF model with labels, wrap in Thinc
+    """
+    Called as (vocab, model_name, labels) → return a Thinc Model wrapping GLiNER.
+    """
     hf = GLiNER.from_pretrained(model_name, labels=labels)
-    return PyTorchWrapper(hf)
+    return PyTorchWrapper(hf)  # Makes it trainable by spaCy
 
 
-# 2) Trainable pipe: __init__ only takes (name, model)
+# 2) Subclass TrainablePipe exactly matching its __init__ signature
 class GLiNERPipe(TrainablePipe):
     def __init__(
         self,
+        vocab: Vocab,
         name: str,
         model: Model,
         labels: list[str],
         threshold: float = 0.5,
     ):
-        super().__init__(name, model)
+        # Must pass vocab, name, model positionally
+        super().__init__(vocab, name, model)  # no keywords allowed :contentReference[oaicite:1]{index=1}
         self.labels = labels
         self.threshold = threshold
         self.loss_fn = BCEWithLogitsLoss()
@@ -61,7 +65,8 @@ class GLiNERPipe(TrainablePipe):
         for i, example in enumerate(examples):
             for span in example.reference.ents:
                 span_idx = self.model._func.find_span_index(
-                    span.start_char, span.end_char)
+                    span.start_char, span.end_char
+                )
                 lid = self.labels.index(span.label_)
                 target[i, span_idx, lid] = 1
         loss = self.loss_fn(scores, target)
@@ -73,7 +78,7 @@ class GLiNERPipe(TrainablePipe):
         return {}
 
 
-# 3) Factory: build the Thinc model, then the pipe
+# 3) Register factory so spaCy can resolve "gliner" in your config
 @Language.factory(
     "gliner",
     default_config={
@@ -83,10 +88,16 @@ class GLiNERPipe(TrainablePipe):
     },
     assigns=["doc.ents"],
 )
-def make_gliner(nlp: Language, name: str,
-                model_name: str, labels: list[str], threshold: float):
-    # Build the Thinc model via our architecture
-    thinc_model = registry.get("architectures", "custom.GLiNERModel.v1")(
+def make_gliner(
+    nlp: Language,
+    name: str,
+    model_name: str,
+    labels: list[str],
+    threshold: float,
+):
+    # Build the Model via our registered architecture
+    model = registry.get("architectures", "custom.GLiNERModel.v1")(
         nlp.vocab, model_name, labels
     )
-    return GLiNERPipe(name, thinc_model, labels, threshold)
+    # Instantiate the pipe with (vocab, name, model, labels, threshold)
+    return GLiNERPipe(nlp.vocab, name, model, labels, threshold)
