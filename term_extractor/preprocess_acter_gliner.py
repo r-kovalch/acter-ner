@@ -1,25 +1,23 @@
 #!/usr/bin/env python
 """
-Pre‑process ACTER TSV files for GLiNER fine‑tuning.
+Create train / test (/ val) TSVs from ACTER IOB files
+for later conversion with `spacy convert --converter iob`.
 
-Changes vs. original
---------------------
-* Skip lines that lack a real <TAB> (root cause of the unpack error).
-* Use '\n', not '\\n', when writing out files.
-* Split with maxsplit=1 so extra tabs inside a token don’t break parsing.
-* Provide --verbose to print progress every N sentences.
+Example:
+  python preprocess_acter_gliner.py \
+         --input_dirs data/acter/en/*/iob_annotations/without_named_entities \
+         --train_output train_full.tsv \
+         --test_output  test_full.tsv \
+         --val_size 0.1
 """
 import argparse
 import random
 from pathlib import Path
 from typing import List, Tuple
 
-###############################################################################
-# Helper class
-###############################################################################
 
 class Sentence:
-    def __init__(self):
+    def __init__(self) -> None:
         self.tokens: List[str] = []
         self.labels: List[str] = []
 
@@ -28,93 +26,99 @@ class Sentence:
         self.labels.append(label)
 
     def to_tsv(self) -> str:
-        """Return the sentence as IOB‑free TSV."""
-        flat = [lab if lab == "O" else lab.split("-")[-1] for lab in self.labels]
-        return "\n".join(f"{tok}\t{lab}" for tok, lab in zip(self.tokens, flat))
+        """Return the sentence in token–label TSV format (keeps IOB tags)."""
+        return "\n".join(f"{tok}\t{lab}"
+                         for tok, lab in zip(self.tokens, self.labels))
 
     def is_empty(self) -> bool:
         return not self.tokens
 
-###############################################################################
-# Low‑level file helpers
-###############################################################################
 
+# ---------------------------------------------------------------------------
+# helpers
+# ---------------------------------------------------------------------------
 def read_dir(folder: Path) -> List[Sentence]:
-    """Read every *.tsv in *folder* and return a list of Sentence objects."""
+    """
+    Read every *.tsv file in `folder` and return a list of Sentence objects.
+    Malformed lines (without exactly one <TAB>) are skipped.
+    """
     sentences: List[Sentence] = []
-    current = Sentence()
+    cur = Sentence()
 
     for fp in sorted(folder.glob("*.tsv")):
-        with fp.open(encoding="utf8") as fh:
-            for raw in fh:
+        with fp.open(encoding="utf-8") as f:
+            for raw in f:
                 line = raw.rstrip("\n")
-                if not line:                              # blank line = sentence boundary
-                    if not current.is_empty():
-                        sentences.append(current)
-                        current = Sentence()
+                if not line:                       # blank line → new sentence
+                    if not cur.is_empty():
+                        sentences.append(cur)
+                        cur = Sentence()
                     continue
-                if "\t" not in line:                      # malformed → skip
+                if line.count("\t") != 1:          # skip comment / bad row
                     continue
-                token, label = line.split("\t", 1)        # split once, ignore extra tabs
-                current.add(token, label)
+                token, label = line.split("\t")
+                cur.add(token, label)
 
-    if not current.is_empty():                            # flush last sentence
-        sentences.append(current)
+    if not cur.is_empty():                        # last sentence
+        sentences.append(cur)
     return sentences
 
 
 def split(
-    sentences: List[Sentence],
+    sents: List[Sentence],
     test_size: float,
     val_size: float,
     seed: int
 ) -> Tuple[List[Sentence], List[Sentence], List[Sentence]]:
-    """Train/val/test split with reproducible shuffling."""
+    """Shuffle and perform train / val / test split."""
     random.seed(seed)
-    random.shuffle(sentences)
-    test_cut = int(len(sentences) * (1 - test_size))
+    random.shuffle(sents)
+
+    test_cut = int(len(sents) * (1 - test_size))
     val_cut = int(test_cut * (1 - val_size))
-    return sentences[:val_cut], sentences[val_cut:test_cut], sentences[test_cut:]
+
+    train = sents[:val_cut]
+    val   = sents[val_cut:test_cut]
+    test  = sents[test_cut:]
+    return train, val, test
 
 
-def write(path: Path, sents: List[Sentence]) -> None:
+def write(path: Path, sentences: List[Sentence]) -> None:
+    """Write a list of Sentence objects to `path` in TSV format."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", encoding="utf8") as fh:
-        for i, sent in enumerate(sents):
-            if i:
-                fh.write("\n\n")          # real blank line between sentences
-            fh.write(sent.to_tsv())
+    with path.open("w", encoding="utf-8") as f:
+        for i, sent in enumerate(sentences):
+            if i:                                 # blank line between sentences
+                f.write("\n\n")
+            f.write(sent.to_tsv())
 
-###############################################################################
+
+# ---------------------------------------------------------------------------
 # CLI
-###############################################################################
-
+# ---------------------------------------------------------------------------
 def main() -> None:
     p = argparse.ArgumentParser()
-    p.add_argument("--input_dirs", nargs="+", type=Path, required=True)
+    p.add_argument("--input_dirs", nargs="+", type=Path, required=True,
+                   help="Folders that contain *.tsv ACTER files")
     p.add_argument("--train_output", type=Path, required=True)
-    p.add_argument("--test_output", type=Path, required=True)
-    p.add_argument("--val_output", type=Path)
+    p.add_argument("--test_output",  type=Path, required=True)
+    p.add_argument("--val_output",   type=Path, help="If omitted, no dev split")
     p.add_argument("--test_size", type=float, default=0.2)
-    p.add_argument("--val_size", type=float, default=0.0)
+    p.add_argument("--val_size",  type=float, default=0.0)
     p.add_argument("--seed", type=int, default=42)
-    p.add_argument("--verbose", action="store_true", help="Print progress every 1 000 sents")
     args = p.parse_args()
 
+    # gather data
     sentences: List[Sentence] = []
-    for i, directory in enumerate(args.input_dirs, 1):
-        dir_sents = read_dir(directory)
-        sentences.extend(dir_sents)
-        if args.verbose:
-            print(f"Loaded {len(dir_sents):,} sentences from #{i} {directory}")
+    for directory in args.input_dirs:
+        sentences.extend(read_dir(directory))
 
+    # shuffle & split
     train, val, test = split(sentences, args.test_size, args.val_size, args.seed)
 
-    if args.verbose:
-        print(f"⤷ Train: {len(train):,}  Val: {len(val):,}  Test: {len(test):,}")
-
+    # write out
     write(args.train_output, train)
-    write(args.test_output, test)
+    write(args.test_output,  test)
     if args.val_output and val:
         write(args.val_output, val)
 
