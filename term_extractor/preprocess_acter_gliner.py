@@ -1,69 +1,77 @@
+#!/usr/bin/env python
+"""
+Prepare ACTER IOB files for GLiNER fine‑tuning (flat labels).
+Usage:
+  python preprocess_acter_gliner.py \
+         --input_dirs data/acter/en/*/iob_annotations/without_named_entities \
+         --train_output train_full.tsv \
+         --test_output  test_full.tsv
+"""
 import argparse
-from pathlib import Path
 import random
+from pathlib import Path
 from typing import List, Tuple
 
 
 class Sentence:
-    def __init__(self):
+    def __init__(self) -> None:
         self.tokens: List[str] = []
         self.labels: List[str] = []
 
-    def add(self, token: str, label: str):
+    def add(self, token: str, label: str) -> None:
         self.tokens.append(token)
         self.labels.append(label)
 
     def to_tsv(self) -> str:
-        # Strip BIO prefix and optional '-TERM' suffix
-        flat_labels = [
-            (lab if lab == "O" else lab.split("-")[-1].replace("TERM", "TERM"))
-            for lab in self.labels
-        ]
-        return "\\n".join(f"{tok}\\t{lab}" for tok, lab in zip(self.tokens, flat_labels))
+        """Return one sentence in TAB‑separated format with flat labels."""
+        flat = [lab if lab == "O" else lab.split("-")[-1] for lab in self.labels]
+        return "\n".join(f"{tok}\t{lab}" for tok, lab in zip(self.tokens, flat))
 
-    def empty(self):
-        return len(self.tokens) == 0
+    def is_empty(self) -> bool:       # renamed for clarity
+        return not self.tokens
 
 
 def read_dir(folder: Path) -> List[Sentence]:
-    sents: List[Sentence] = []
-    cur = Sentence()
-    for fp in folder.glob("*.tsv"):
-        with fp.open() as f:
-            for line in f:
-                line = line.rstrip()
-                if not line:
-                    if not cur.empty():
-                        sents.append(cur)
-                        cur = Sentence()
+    """Load every *.tsv in `folder`, skipping malformed lines."""
+    sentences, current = [], Sentence()
+    for fp in sorted(folder.glob("*.tsv")):
+        with fp.open(encoding="utf‑8") as f:
+            for raw in f:
+                line = raw.rstrip("\n")
+                if not line:                         # sentence boundary
+                    if not current.is_empty():
+                        sentences.append(current)
+                        current = Sentence()
                     continue
-                tok, lab = line.split("\t")
-                cur.add(tok, lab)
-    if not cur.empty():
-        sents.append(cur)
-    return sents
+                if line.count("\t") != 1:            # skip bad rows silently
+                    continue
+                token, label = line.split("\t")
+                current.add(token, label)
+    if not current.is_empty():
+        sentences.append(current)
+    return sentences
 
 
-def split(sentences: List[Sentence], test_size: float, val_size: float, seed: int) -> Tuple[
-    List[Sentence], List[Sentence], List[Sentence]]:
+def split(
+    sents: List[Sentence], test_size: float, val_size: float, seed: int
+) -> Tuple[List[Sentence], List[Sentence], List[Sentence]]:
     random.seed(seed)
-    random.shuffle(sentences)
-    test_cut = int(len(sentences) * (1 - test_size))
+    random.shuffle(sents)
+    test_cut = int(len(sents) * (1 - test_size))
     val_cut = int(test_cut * (1 - val_size))
-    train, val, test = sentences[:val_cut], sentences[val_cut:test_cut], sentences[test_cut:]
-    return train, val, test
+    return sents[:val_cut], sents[val_cut:test_cut], sents[test_cut:]
 
 
-def write(out: Path, sents: List[Sentence]):
-    out.parent.mkdir(parents=True, exist_ok=True)
-    with out.open("w") as f:
-        for i, s in enumerate(sents):
+def write(path: Path, sents: List[Sentence]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf‑8") as f:
+        for i, sent in enumerate(sents):
             if i:
-                f.write("\\n\\n")
-            f.write(s.to_tsv())
+                f.write("\n\n")
+            f.write(sent.to_tsv())
 
 
-def main():
+def main() -> None:
     p = argparse.ArgumentParser()
     p.add_argument("--input_dirs", nargs="+", type=Path, required=True)
     p.add_argument("--train_output", type=Path, required=True)
@@ -74,12 +82,11 @@ def main():
     p.add_argument("--seed", type=int, default=42)
     args = p.parse_args()
 
-    all_sents: List[Sentence] = []
+    sentences: List[Sentence] = []
     for d in args.input_dirs:
-        all_sents.extend(read_dir(d))
+        sentences.extend(read_dir(d))
 
-    train, val, test = split(all_sents, args.test_size, args.val_size, args.seed)
-
+    train, val, test = split(sentences, args.test_size, args.val_size, args.seed)
     write(args.train_output, train)
     write(args.test_output, test)
     if args.val_output and val:
