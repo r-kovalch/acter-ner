@@ -3,7 +3,7 @@ from torch.nn import BCEWithLogitsLoss
 from thinc.api import PyTorchWrapper, Model
 from spacy.language import Language
 from spacy.pipeline.trainable_pipe import TrainablePipe
-from spacy.registry import registry
+from spacy.util import registry
 from gliner import GLiNER                       # HF checkpoint
 
 
