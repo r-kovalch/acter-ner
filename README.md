@@ -2,6 +2,28 @@
 
 This is an assorted set of experiments to convert ATE task to NER task and train the model for an automatic term extraction.
 
+## Fine-tuning results
+
+
+[//]: # (model, language, ents_f, ents_p, ents_r, score)
+
+[//]: # (xlm-roberta-large, en+fr+nl, 84.80, 86.61, 83.08, 0.85)
+
+[//]: # (xlm-roberta-large, en, 90.51, 90.89, 90.14, 0.91)
+
+[//]: # (roberta-large, en+fr+nl, 85.51, 88.16, 83.01, 0.86)
+
+[//]: # (roberta-large, en, 92.72, 93.12, 92.33, 0.93)
+| model             | ents_f | ents_p    | ents_r | score |
+|-------------------|--------|-----------|--------|-------|
+| **English only**  |        |           |        |       |
+| xlm-roberta-large | 90.51  | 90.89     | 90.14  | 0.91  |
+| roberta-large     | **92.72**  | **93.12** | **92.33**  | **0.93**  |
+| **Multilingual (English, French, Dutch)** | |           | | |
+| xlm-roberta-large | 84.80  | 86.61     | **83.08**  | 0.85  |
+| roberta-large     | **85.51**  | **88.16** | 83.01  | **0.86**  |
+
+
 ## Prerequisites
 You'll need:
 1. [ACTER dataset](https://github.com/AylaRT/ACTER/tree/master)
