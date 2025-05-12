@@ -6,13 +6,18 @@ from thinc.api import PyTorchWrapper, Model
 from spacy.language import Language
 from spacy.pipeline.trainable_pipe import TrainablePipe
 from spacy import registry
+from spacy.vocab import Vocab
 from gliner import GLiNER
 
 
 @registry.architectures("custom.GLiNERModel.v1")
-def build_gliner_model(model_name: str, labels: list[str]) -> Model:
+def build_gliner_model(vocab: Vocab, model_name: str, labels: list[str]) -> Model:
+    """
+    spaCy will pass in the shared Vocab here—ignore it.
+    """
     hf = GLiNER.from_pretrained(model_name, labels=labels)
     return PyTorchWrapper(hf)
+
 
 
 class GLiNERPipe(TrainablePipe):
