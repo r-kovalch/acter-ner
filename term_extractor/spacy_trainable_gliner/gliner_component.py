@@ -10,33 +10,28 @@ from spacy import registry
 from gliner import GLiNER
 
 
+# 1) Architecture: spaCy will call this with (vocab, model_name, labels)
 @registry.architectures("custom.GLiNERModel.v1")
 def build_gliner_model(
     vocab: Vocab,
     model_name: str,
-    labels: list[str] | None = None,
+    labels: list[str],
 ) -> Model:
-    if labels is None:
-        labels = ["TERM"]
+    # load HF model with labels, wrap in Thinc
     hf = GLiNER.from_pretrained(model_name, labels=labels)
     return PyTorchWrapper(hf)
 
 
+# 2) Trainable pipe: __init__ only takes (name, model)
 class GLiNERPipe(TrainablePipe):
     def __init__(
         self,
-        nlp,
         name: str,
-        model_name: str,
+        model: Model,
         labels: list[str],
         threshold: float = 0.5,
     ):
-        # Build the Thinc model
-        thinc_model = registry.get("architectures", "custom.GLiNERModel.v1")(
-            nlp.vocab, model_name, labels
-        )
-        # ⚠️ Pass vocab, not nlp
-        super().__init__(nlp.vocab, name, thinc_model)
+        super().__init__(name, model)
         self.labels = labels
         self.threshold = threshold
         self.loss_fn = BCEWithLogitsLoss()
@@ -49,12 +44,12 @@ class GLiNERPipe(TrainablePipe):
         get_span = self.model._func.get_span
         for doc, spanscores in zip(docs, probs):
             ents = []
-            for span_idx, cls_scores in enumerate(spanscores):
+            for idx, cls_scores in enumerate(spanscores):
                 lid = int(cls_scores.argmax().item())
                 score = float(cls_scores[lid])
                 if score >= self.threshold:
-                    start, end = get_span(span_idx)
-                    span = doc.char_span(start, end,
+                    s, e = get_span(idx)
+                    span = doc.char_span(s, e,
                                          label=self.labels[lid],
                                          alignment_mode="expand")
                     if span:
@@ -65,11 +60,10 @@ class GLiNERPipe(TrainablePipe):
         target = torch.zeros_like(scores)
         for i, example in enumerate(examples):
             for span in example.reference.ents:
-                idx = self.model._func.find_span_index(
-                    span.start_char, span.end_char
-                )
+                span_idx = self.model._func.find_span_index(
+                    span.start_char, span.end_char)
                 lid = self.labels.index(span.label_)
-                target[i, idx, lid] = 1
+                target[i, span_idx, lid] = 1
         loss = self.loss_fn(scores, target)
         d_scores = torch.autograd.grad(loss, scores)[0]
         return loss, d_scores
@@ -79,6 +73,7 @@ class GLiNERPipe(TrainablePipe):
         return {}
 
 
+# 3) Factory: build the Thinc model, then the pipe
 @Language.factory(
     "gliner",
     default_config={
@@ -90,4 +85,8 @@ class GLiNERPipe(TrainablePipe):
 )
 def make_gliner(nlp: Language, name: str,
                 model_name: str, labels: list[str], threshold: float):
-    return GLiNERPipe(nlp, name, model_name, labels, threshold)
+    # Build the Thinc model via our architecture
+    thinc_model = registry.get("architectures", "custom.GLiNERModel.v1")(
+        nlp.vocab, model_name, labels
+    )
+    return GLiNERPipe(name, thinc_model, labels, threshold)
