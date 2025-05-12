@@ -15,9 +15,9 @@ def build_gliner_model(model_name: str, labels: list[str]) -> Model:
 # 2) Pipe
 class GLiNERPipe(TrainablePipe):
     def __init__(self, name: str, model: Model, *, labels: list[str], threshold: float = 0.5, vocab=None):
-        # We need to pass the nlp.vocab object from the Language instance
-        self.vocab = vocab
-        super().__init__(name, model)  # TrainablePipe in recent spaCy versions takes only name and model
+        # Pass all three required arguments to TrainablePipe.__init__
+        # In this version of spaCy, TrainablePipe needs name, model, and vocab
+        super().__init__(name, model, vocab)
         self.labels = labels
         self.threshold = threshold
         self.loss_fn = BCEWithLogitsLoss()
@@ -67,5 +67,5 @@ class GLiNERPipe(TrainablePipe):
 )
 def make_gliner(nlp: Language, name: str, model_name: str, labels: list[str], threshold: float):
     model = registry.get("architectures", "custom.GLiNERModel.v1")(model_name, labels)
-    # Pass nlp.vocab to the pipe
-    return GLiNERPipe(name, model, labels=labels, threshold=threshold, vocab=nlp.vocab)
+    # Make sure we properly pass nlp.vocab
+    return GLiNERPipe(name=name, model=model, labels=labels, threshold=threshold, vocab=nlp.vocab)
