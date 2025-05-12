@@ -8,4 +8,5 @@ python preprocess_acter_gliner.py \
     --val_output val_full.tsv \
     --test_size 0.2 \
     --val_size 0 \
-    --seed 42
+    --seed 42 \
+    --write_json true

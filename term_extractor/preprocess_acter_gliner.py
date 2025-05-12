@@ -11,7 +11,9 @@ Example:
          --val_size 0.1
 """
 import argparse
+import json
 import random
+from os import path
 from pathlib import Path
 from typing import List, Tuple
 
@@ -44,12 +46,12 @@ def read_dir(folder: Path) -> List[Sentence]:
         with fp.open(encoding="utf-8") as f:
             for raw in f:
                 line = raw.rstrip("\n")
-                if not line:                  # blank line → new sentence
+                if not line:  # blank line → new sentence
                     if not cur.is_empty():
                         sentences.append(cur)
                         cur = Sentence()
                     continue
-                if line.count("\t") != 1:     # skip malformed row
+                if line.count("\t") != 1:  # skip malformed row
                     continue
 
                 token, label = line.split("\t")
@@ -68,12 +70,11 @@ def read_dir(folder: Path) -> List[Sentence]:
     return sentences
 
 
-
 def split(
-    sents: List[Sentence],
-    test_size: float,
-    val_size: float,
-    seed: int
+        sents: List[Sentence],
+        test_size: float,
+        val_size: float,
+        seed: int
 ) -> Tuple[List[Sentence], List[Sentence], List[Sentence]]:
     """Shuffle and perform train / val / test split."""
     random.seed(seed)
@@ -83,9 +84,35 @@ def split(
     val_cut = int(test_cut * (1 - val_size))
 
     train = sents[:val_cut]
-    val   = sents[val_cut:test_cut]
-    test  = sents[test_cut:]
+    val = sents[val_cut:test_cut]
+    test = sents[test_cut:]
     return train, val, test
+
+
+def sentence_to_json(sentence: Sentence) -> dict:
+    """Return a dict that GLiNER can consume."""
+    text, offsets = [], []  # plain-text & token-start positions
+    for tok in sentence.tokens:
+        offsets.append(len(" ".join(text)))
+        text.append(tok)
+    joined = " ".join(text)
+
+    spans = []
+    for i, lab in enumerate(sentence.labels):
+        if lab.startswith("B-"):
+            label = lab[2:]
+            start = offsets[i]
+            end = start + len(sentence.tokens[i])
+            # merge following I- of same label
+            j = i + 1
+            while j < len(sentence.labels) and sentence.labels[j] == f"I-{label}":
+                end += 1 + len(sentence.tokens[j])  # 1 for the space
+                j += 1
+            spans.append({"text": joined[start:end],
+                          "label": label.lower(),
+                          "start": start,
+                          "end": end})
+    return {"text": joined, "entities": spans}
 
 
 def write(path: Path, sentences: List[Sentence]) -> None:
@@ -96,6 +123,13 @@ def write(path: Path, sentences: List[Sentence]) -> None:
             f.write("\n\n")
 
 
+def write_json(path: Path, sentences: List[Sentence]) -> None:
+    with path.open("w", encoding="utf-8") as f:
+        for sent in sentences:
+            json.dump(sentence_to_json(sent), f, ensure_ascii=False)
+            f.write("\n")
+
+
 # ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
@@ -104,11 +138,12 @@ def main() -> None:
     p.add_argument("--input_dirs", nargs="+", type=Path, required=True,
                    help="Folders that contain *.tsv ACTER files")
     p.add_argument("--train_output", type=Path, required=True)
-    p.add_argument("--test_output",  type=Path, required=True)
-    p.add_argument("--val_output",   type=Path, help="If omitted, no dev split")
+    p.add_argument("--test_output", type=Path, required=True)
+    p.add_argument("--val_output", type=Path, help="If omitted, no dev split")
     p.add_argument("--test_size", type=float, default=0.2)
-    p.add_argument("--val_size",  type=float, default=0.0)
+    p.add_argument("--val_size", type=float, default=0.0)
     p.add_argument("--seed", type=int, default=42)
+    p.add_argument("--write_json", type=bool, default=True, help="Gliner needs json output")
     args = p.parse_args()
 
     # gather data
@@ -121,9 +156,18 @@ def main() -> None:
 
     # write out
     write(args.train_output, train)
-    write(args.test_output,  test)
+    write(args.test_output, test)
     if args.val_output and val:
         write(args.val_output, val)
+
+    if args.write_json:
+        print("Writing JSON for GLiNER")
+
+        write_json(args.train_output, train)
+        write_json(args.test_output, test)
+        if args.val_output and val:
+            write_json(args.val_output, val)
+
 
 
 if __name__ == "__main__":
