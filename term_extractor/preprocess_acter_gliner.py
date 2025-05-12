@@ -37,7 +37,7 @@ def read_dir(folder: Path) -> List[Sentence]:
                         sents.append(cur)
                         cur = Sentence()
                     continue
-                tok, lab = line.split("\\t")
+                tok, lab = line.split("\t")
                 cur.add(tok, lab)
     if not cur.empty():
         sents.append(cur)
