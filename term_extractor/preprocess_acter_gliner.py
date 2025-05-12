@@ -38,30 +38,35 @@ class Sentence:
 # helpers
 # ---------------------------------------------------------------------------
 def read_dir(folder: Path) -> List[Sentence]:
-    """
-    Read every *.tsv file in `folder` and return a list of Sentence objects.
-    Malformed lines (without exactly one <TAB>) are skipped.
-    """
-    sentences: List[Sentence] = []
-    cur = Sentence()
+    sentences, cur = [], Sentence()
 
     for fp in sorted(folder.glob("*.tsv")):
         with fp.open(encoding="utf-8") as f:
             for raw in f:
                 line = raw.rstrip("\n")
-                if not line:                       # blank line → new sentence
+                if not line:                  # blank line → new sentence
                     if not cur.is_empty():
                         sentences.append(cur)
                         cur = Sentence()
                     continue
-                if line.count("\t") != 1:          # skip comment / bad row
+                if line.count("\t") != 1:     # skip malformed row
                     continue
+
                 token, label = line.split("\t")
+
+                # ---- FIX orphan tags --------------------------------------
+                if label == "B":
+                    label = "B-TERM"
+                elif label == "I":
+                    label = "I-TERM"
+                # -----------------------------------------------------------
+
                 cur.add(token, label)
 
-    if not cur.is_empty():                        # last sentence
+    if not cur.is_empty():
         sentences.append(cur)
     return sentences
+
 
 
 def split(
