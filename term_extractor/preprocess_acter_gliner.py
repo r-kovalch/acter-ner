@@ -91,10 +91,9 @@ def split(
 def write(path: Path, sentences: List[Sentence]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8") as f:
-        for i, sent in enumerate(sentences):
-            if i:
-                f.write("\n\n")
-        f.write(sent.to_tsv())
+        for sent in sentences:
+            f.write(sent.to_tsv())  # each line: token + "\t" + label
+            f.write("\n\n")
 
 
 # ---------------------------------------------------------------------------
