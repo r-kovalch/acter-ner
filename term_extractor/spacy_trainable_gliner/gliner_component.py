@@ -31,21 +31,20 @@ def build_gliner_model(model_name: str, labels: list[str]) -> Model:  # noqa: D4
 # 2) Trainable pipe
 # ---------------------------------------------------------------------------
 class GLiNERPipe(TrainablePipe):
-    """spaCy pipeline component for GLiNER."""
-
     def __init__(
         self,
         name: str,
         model: Model,
         labels: list[str],
         threshold: float = 0.5,
-    ) -> None:
-        # >>>>> *DON'T BREAK THIS LINE!*  Two positional args required <<<<<
-        super().__init__(name, model)
-
+    ):
+        # ⬇⬇  THREE positional args:  name, model, cfg  ⬇⬇
+        super().__init__(name, model, cfg={})      # <- add cfg
+        # ---------------------------------------------------
         self.labels = labels
         self.threshold = threshold
         self.loss_fn = BCEWithLogitsLoss()
+
 
     # ------------------------------
     # Inference helpers
