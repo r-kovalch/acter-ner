@@ -2,6 +2,9 @@
 __pycache__/
 *.py[cod]
 *$py.class
+.idea
+term_extractor/input_data/*
+term_extractor/output/*
 
 # C extensions
 *.so

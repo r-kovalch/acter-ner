@@ -1,0 +1,15 @@
+[tool.poetry]
+name = "acter-ner"
+version = "0.1.0"
+description = ""
+authors = ["rkovalch <mrbylba@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = ">=3.12,<3.13"
+spacy = {extras = ["transformers"], version = "^3.8.4"}
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
