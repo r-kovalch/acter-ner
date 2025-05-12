@@ -18,7 +18,7 @@ def build_gliner_model(model_name: str, labels: list[str]) -> Model:
 class GLiNERPipe(TrainablePipe):
     def __init__(self, nlp, name: str, model_name: str, labels: list[str], threshold: float = 0.5):
         thinc_model = registry.get("architectures", "custom.GLiNERModel.v1")(model_name, labels)
-        super().__init__(nlp, name, model=thinc_model)
+        super().__init__(nlp, name, thinc_model)
         self.labels = labels
         self.threshold = threshold
         self.loss_fn = BCEWithLogitsLoss()
