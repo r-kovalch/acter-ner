@@ -3,34 +3,41 @@
 import torch
 from torch.nn import BCEWithLogitsLoss
 from thinc.api import PyTorchWrapper, Model
+from spacy.vocab import Vocab
 from spacy.language import Language
 from spacy.pipeline.trainable_pipe import TrainablePipe
 from spacy import registry
-from spacy.vocab import Vocab
 from gliner import GLiNER
 
 
+# 1) Architecture registration: takes (vocab, model_name, labels?)
 @registry.architectures("custom.GLiNERModel.v1")
 def build_gliner_model(
     vocab: Vocab,
     model_name: str,
-    labels: list[str] | None = None,   # ← make labels optional
+    labels: list[str] | None = None  # allow None during init-fill
 ) -> Model:
-    """
-    Load GLiNER from HF, wrap it as a Thinc Model.
-    If `labels` is None (e.g. during fill-config), use a sensible default.
-    """
-    # If labels weren't passed (fill-config), just pick a placeholder
     if labels is None:
         labels = ["TERM"]
     hf = GLiNER.from_pretrained(model_name, labels=labels)
     return PyTorchWrapper(hf)
 
 
+# 2) Trainable pipe: __init__ signature must be (nlp, name, model)
 class GLiNERPipe(TrainablePipe):
-    def __init__(self, nlp, name: str, model_name: str, labels: list[str], threshold: float = 0.5):
-        thinc_model = registry.get("architectures", "custom.GLiNERModel.v1")(model_name, labels)
-        super().__init__(nlp, name, thinc_model)
+    def __init__(
+        self,
+        nlp,
+        name: str,
+        model_name: str,
+        labels: list[str],
+        threshold: float = 0.5,
+    ):
+        # Build Thinc model via our registry entry
+        thinc_model = registry.get("architectures", "custom.GLiNERModel.v1")(
+            nlp.vocab, model_name, labels
+        )
+        super().__init__(nlp, name, thinc_model)  # positional args only :contentReference[oaicite:3]{index=3}
         self.labels = labels
         self.threshold = threshold
         self.loss_fn = BCEWithLogitsLoss()
@@ -53,11 +60,14 @@ class GLiNERPipe(TrainablePipe):
                         ents.append(span)
             doc.ents = ents
 
-    def get_loss(self, docs, golds, scores):
+    def get_loss(self, docs, examples, scores):
+        # examples: List[Example], use example.reference.ents
         target = torch.zeros_like(scores)
-        for i, spans in enumerate(golds):
-            for span_idx, label in spans:
-                target[i, span_idx, label] = 1
+        for i, example in enumerate(examples):
+            for span in example.reference.ents:
+                idx = self.model._func.find_span_index(span.start_char, span.end_char)
+                lid = self.labels.index(span.label_)
+                target[i, idx, lid] = 1
         loss = self.loss_fn(scores, target)
         d_scores = torch.autograd.grad(loss, scores)[0]
         return loss, d_scores
@@ -67,6 +77,7 @@ class GLiNERPipe(TrainablePipe):
         return {}
 
 
+# 3) Factory registration: name must match config
 @Language.factory(
     "gliner",
     default_config={
