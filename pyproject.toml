@@ -7,7 +7,9 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = ">=3.12,<3.13"
-spacy = {extras = ["transformers"], version = "^3.8.4"}
+spacy = {extras = ["cuda121"], version = "^3.8.5"}
+spacy-transformers = "^1.3.8"
+torch = "^2.7.0"
 
 
 [build-system]
