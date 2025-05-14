@@ -14,15 +14,16 @@ This is an assorted set of experiments to convert ATE task to NER task and train
 [//]: # (roberta-large, en+fr+nl, 85.51, 88.16, 83.01, 0.86)
 
 [//]: # (roberta-large, en, 92.72, 93.12, 92.33, 0.93)
-| model             | ents_f | ents_p    | ents_r | score |
-|-------------------|--------|-----------|--------|-------|
-| **English only**  |        |           |        |       |
-| xlm-roberta-large | 90.51  | 90.89     | 90.14  | 0.91  |
-| roberta-large     | **92.72**  | **93.12** | **92.33**  | **0.93**  |
-| gliner_small_v2.5| 81.67 | 83.05 | 80.33 | 0.82 |
-| **Multilingual (English, French, Dutch)** | |           | | |
-| xlm-roberta-large | 84.80  | 86.61     | **83.08**  | 0.85  |
-| roberta-large     | **85.51**  | **88.16** | 83.01  | **0.86**  |
+| model                                     | ents_f | ents_p    | ents_r | score    |
+|-------------------------------------------|--------|-----------|--------|----------|
+| **English only**                          |        |           |        |          |
+| xlm-roberta-large                         | 90.51  | 90.89     | 90.14  | 0.91     |
+| roberta-large                             | **92.72**  | **93.12** | **92.33**  | **0.93** |
+| gliner_small_v2.5                         | 81.67 | 83.05     | 80.33 | 0.82     |
+| gliner_large_v2.5                         | 75.00 | 65.06     | 88.52 | 0.75     |
+| **Multilingual (English, French, Dutch)** | |           | |          |
+| xlm-roberta-large                         | 84.80  | 86.61     | **83.08**  | 0.85     |
+| roberta-large                             | **85.51**  | **88.16** | 83.01  | **0.86** |
 
 
 ## Prerequisites
