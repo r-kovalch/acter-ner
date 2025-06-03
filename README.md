@@ -14,17 +14,22 @@ This is an assorted set of experiments to convert ATE task to NER task and train
 [//]: # (roberta-large, en+fr+nl, 85.51, 88.16, 83.01, 0.86)
 
 [//]: # (roberta-large, en, 92.72, 93.12, 92.33, 0.93)
-| model                                     | ents_f | ents_p    | ents_r | score    |
-|-------------------------------------------|--------|-----------|--------|----------|
-| **English only**                          |        |           |        |          |
-| xlm-roberta-large                         | 90.51  | 90.89     | 90.14  | 0.91     |
-| roberta-large                             | **92.72**  | **93.12** | **92.33**  | **0.93** |
-| gliner_small_v2.5                         | 81.67 | 83.05     | 80.33 | 0.82     |
-| gliner_large_v2.5                         | 75.00 | 65.06     | 88.52 | 0.75     |
-| **Multilingual (English, French, Dutch)** | |           | |          |
-| xlm-roberta-large                         | 84.80  | 86.61     | **83.08**  | 0.85     |
-| roberta-large                             | **85.51**  | **88.16** | 83.01  | **0.86** |
+| model                                                                                   | ents_f    | ents_p    | ents_r | score    |
+|-----------------------------------------------------------------------------------------|-----------|-----------|-------|----------|
+| **English only**                                                                        |           |           |       |          |
+| [FacebookAI/xlm-roberta-large](https://huggingface.co/FacebookAI/xlm-roberta-large)     | 90.51     | 90.89     | 90.14 | 0.91     |
+| [FacebookAI/roberta-large](https://huggingface.co/FacebookAI/roberta-large)             | **92.72** | **93.12** | **92.33** | **0.93** |
+| [urchade/gliner_small_v2.5](https://huggingface.co/gliner-community/gliner_small-v2.5)  | 81.67     | 83.05     | 80.33 | 0.82     |
+| [urchade/gliner_large_v2.5](https://huggingface.co/gliner-community/gliner_large-v2.5)* | 75.00     | 65.06     | 88.52 | 0.75     |
+| **Multilingual (English, French, Dutch)**                                               |           |           |       |          |
+| [FacebookAI/xlm-roberta-large](https://huggingface.co/FacebookAI/xlm-roberta-large)     | 84.80     | 86.61     | 83.08 | 0.85     |
+| [FacebookAI/roberta-large](https://huggingface.co/FacebookAI/roberta-large)             | **85.51** | **88.16** | 83.01 | **0.86** |
+| [urchade/gliner_multi-v2.1](https://huggingface.co/urchade/gliner_multi-v2.1)           | 84.61     | 84.42     | **84.95** | 0.85     |
 
+---
+- Due to GPU and cost limitations, we used L4 GPU on Colab, which is not enough for complete gliner_large or gliner_medium fine-tuning, so the resulting large and medium models might be underfitted.
+- For GLiNER models, recommended threshold from the original paper was used - 0.35, adjusting which may yield better F1 score, but at the cost fo reducing recall.
+- Hyperparameter tuning may improve the results.
 
 ## Prerequisites
 You'll need:

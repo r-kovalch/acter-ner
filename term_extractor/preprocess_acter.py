@@ -2,6 +2,7 @@
 
 import argparse
 import csv
+import os
 from pathlib import Path
 from typing import List, Optional, Tuple
 import random
@@ -88,10 +89,7 @@ class SentenceTokens:
         Returns:
             List of TSV formatted lines
         """
-        return [
-            f"{t}\t{l + "-TERM" if l != "O" else l}"
-            for t, l in zip(self.tokens, self.labels)
-        ]
+        return [f"{t}\t{l + '-TERM' if l != 'O' else l}" for t, l in zip(self.tokens, self.labels)]
 
 
 class IOBDatasetProcessor:
@@ -288,14 +286,27 @@ class IOBDatasetProcessor:
             print(f"Validation: {len(val_sentences)} sentences")
         print(f"Test: {len(test_sentences)} sentences")
 
-        # Write output files
-        print("\nWriting output files...")
+        # region save IOB (tsv) files
         self.write_sentences(train_sentences, self.train_output)
         self.write_sentences(test_sentences, self.test_output)
         if self.val_output and val_sentences:
             self.write_sentences(val_sentences, self.val_output)
+        # endregion
 
-        print("\nDataset preparation completed!")
+        # region save txt and csv files
+        train_without_ext = os.path.splitext(self.train_output)[0]
+        os.makedirs(train_without_ext, exist_ok=True)
+        self.save_text_and_labels(train_sentences, self.train_output.with_suffix(''))
+
+        test_without_ext = os.path.splitext(self.test_output)[0]
+        os.makedirs(test_without_ext, exist_ok=True)
+        self.save_text_and_labels(test_sentences, self.test_output.with_suffix(''))
+
+        if self.val_output and val_sentences:
+            val_without_ext = os.path.splitext(self.val_output)[0]
+            os.makedirs(val_without_ext, exist_ok=True)
+            self.save_text_and_labels(val_sentences, self.val_output.with_suffix(''))
+        # endregion
 
 
 def parse_args() -> argparse.Namespace:
